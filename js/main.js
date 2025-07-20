@@ -548,6 +548,98 @@ function formatPrice(price) {
 }
 
 // =====================================================
+// Quote API Integration
+// =====================================================
+
+// Quote functionality using Quotable API
+async function fetchQuote() {
+    const quoteText = document.getElementById('quote-text');
+    const quoteAuthor = document.getElementById('quote-author');
+    const quoteLoader = document.querySelector('.quote-loader');
+    const quoteRefresh = document.getElementById('quote-refresh');
+    
+    if (!quoteText) return; // Only run if quote elements exist
+    
+    try {
+        // Show loading state
+        if (quoteLoader) quoteLoader.style.display = 'block';
+        if (quoteText) quoteText.style.display = 'none';
+        if (quoteAuthor) quoteAuthor.style.display = 'none';
+        if (quoteRefresh) quoteRefresh.style.display = 'none';
+        
+        // Fetch from Quotable API
+        const response = await fetch('https://api.quotable.io/random?tags=motivational,inspirational,wisdom');
+        
+        if (!response.ok) {
+            throw new Error('Failed to fetch quote');
+        }
+        
+        const data = await response.json();
+        
+        // Update UI with quote
+        setTimeout(() => {
+            if (quoteLoader) quoteLoader.style.display = 'none';
+            if (quoteText) {
+                quoteText.textContent = data.content;
+                quoteText.style.display = 'block';
+            }
+            if (quoteAuthor) {
+                quoteAuthor.textContent = data.author;
+                quoteAuthor.style.display = 'block';
+            }
+            if (quoteRefresh) {
+                quoteRefresh.style.display = 'inline-flex';
+            }
+        }, 500); // Small delay for better UX
+        
+    } catch (error) {
+        console.error('Error fetching quote:', error);
+        
+        // Fallback quote
+        const fallbackQuotes = [
+            { content: "Be yourself; everyone else is already taken.", author: "Oscar Wilde" },
+            { content: "The only way to do great work is to love what you do.", author: "Steve Jobs" },
+            { content: "Your personality is your brand.", author: "Unknown" }
+        ];
+        
+        const randomQuote = fallbackQuotes[Math.floor(Math.random() * fallbackQuotes.length)];
+        
+        setTimeout(() => {
+            if (quoteLoader) quoteLoader.style.display = 'none';
+            if (quoteText) {
+                quoteText.textContent = randomQuote.content;
+                quoteText.style.display = 'block';
+            }
+            if (quoteAuthor) {
+                quoteAuthor.textContent = randomQuote.author;
+                quoteAuthor.style.display = 'block';
+            }
+            if (quoteRefresh) {
+                quoteRefresh.style.display = 'inline-flex';
+            }
+        }, 500);
+    }
+}
+
+// Initialize quote functionality
+function initializeQuotes() {
+    const quoteRefresh = document.getElementById('quote-refresh');
+    
+    if (quoteRefresh) {
+        quoteRefresh.addEventListener('click', fetchQuote);
+    }
+    
+    // Fetch initial quote
+    fetchQuote();
+}
+
+// Add to DOMContentLoaded
+document.addEventListener('DOMContentLoaded', () => {
+    // Initialize quotes if on about page
+    initializeQuotes();
+});
+
+// =====================================================
 // Export functions for potential use
 // =====================================================
 

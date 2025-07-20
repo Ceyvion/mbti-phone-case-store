@@ -10,8 +10,23 @@ const mbtiCards = document.querySelectorAll('.mbti-card');
 const cartCountEl = document.querySelector('.cart-count');
 const quickViewBtns = document.querySelectorAll('.quick-view button');
 
+// Dark Mode Elements
+const themeToggle = document.getElementById('theme-toggle');
+const sunIcon = document.querySelector('.sun-icon');
+const moonIcon = document.querySelector('.moon-icon');
+
+// Cart Elements
+const cartToggle = document.getElementById('cart-toggle');
+const cartSidebar = document.getElementById('cart-sidebar');
+const cartOverlay = document.getElementById('cart-overlay');
+const cartClose = document.getElementById('cart-close');
+const cartCloseBtn = document.getElementById('cart-close-btn');
+const cartItemsContainer = document.getElementById('cart-items');
+const cartTotalEl = document.getElementById('cart-total');
+
 // State
-let cartCount = 0;
+let cartItems = [];
+let cartTotal = 0;
 let mouseX = 0;
 let mouseY = 0;
 
@@ -88,13 +103,16 @@ filterBtns.forEach(btn => {
 // =====================================================
 
 mbtiCards.forEach(card => {
-    card.addEventListener('click', function() {
+    card.addEventListener('click', function(event) {
         const type = this.querySelector('.mbti-type').textContent;
         const name = this.querySelector('.mbti-name').textContent;
         
         console.log(`Selected MBTI type: ${type} - ${name}`);
         
-        // Add ripple effect
+        // Navigate to MBTI type page
+        window.location.href = `mbti/${type.toLowerCase()}.html`;
+        
+        // Add ripple effect for immediate feedback
         const ripple = document.createElement('div');
         ripple.style.position = 'absolute';
         ripple.style.width = '20px';
@@ -112,12 +130,6 @@ mbtiCards.forEach(card => {
         this.appendChild(ripple);
         
         setTimeout(() => ripple.remove(), 600);
-        
-        // Scroll to products section
-        const shopSection = document.querySelector('#shop');
-        if (shopSection) {
-            shopSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
     });
 });
 
@@ -143,22 +155,25 @@ document.head.appendChild(style);
 // Cart Functionality
 // =====================================================
 
-quickViewBtns.forEach(btn => {
+quickViewBtns.forEach((btn, index) => {
     btn.addEventListener('click', (e) => {
         e.stopPropagation();
         
-        // Increment cart count
-        cartCount++;
-        cartCountEl.textContent = cartCount;
+        // Get product ID from the product card
+        const productCard = btn.closest('.product-card');
+        const productTitle = productCard.querySelector('.product-title').textContent;
+        
+        // Extract MBTI type from title
+        const mbtiType = productTitle.split(' ')[0];
+        
+        // Add to cart
+        addToCart(mbtiType);
         
         // Animate cart count
         cartCountEl.style.transform = 'scale(1.2)';
         setTimeout(() => {
             cartCountEl.style.transform = 'scale(1)';
         }, 200);
-        
-        // Show toast notification
-        showToast('Item added to cart!');
     });
 });
 
@@ -167,30 +182,17 @@ function showToast(message) {
     const toast = document.createElement('div');
     toast.className = 'toast';
     toast.textContent = message;
-    toast.style.cssText = `
-        position: fixed;
-        bottom: 30px;
-        right: 30px;
-        background: var(--color-black);
-        color: var(--color-white);
-        padding: 16px 24px;
-        border-radius: 4px;
-        font-size: 14px;
-        transform: translateY(100px);
-        transition: transform 0.3s ease;
-        z-index: 1000;
-    `;
     
     document.body.appendChild(toast);
     
     // Animate in
     setTimeout(() => {
-        toast.style.transform = 'translateY(0)';
+        toast.classList.add('show');
     }, 10);
     
     // Remove after 3 seconds
     setTimeout(() => {
-        toast.style.transform = 'translateY(100px)';
+        toast.classList.remove('show');
         setTimeout(() => toast.remove(), 300);
     }, 3000);
 }
@@ -307,11 +309,210 @@ function createMobileMenu() {
 }
 
 // =====================================================
+// Dark Mode Functionality
+// =====================================================
+
+// Initialize theme
+function initializeTheme() {
+    const savedTheme = localStorage.getItem('theme');
+    const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    
+    if (savedTheme === 'dark' || (!savedTheme && systemPrefersDark)) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        updateThemeIcons(true);
+    } else {
+        document.documentElement.setAttribute('data-theme', 'light');
+        updateThemeIcons(false);
+    }
+}
+
+// Update theme icons
+function updateThemeIcons(isDark) {
+    if (isDark) {
+        sunIcon.style.display = 'none';
+        moonIcon.style.display = 'block';
+    } else {
+        sunIcon.style.display = 'block';
+        moonIcon.style.display = 'none';
+    }
+}
+
+// Toggle theme
+function toggleTheme() {
+    const currentTheme = document.documentElement.getAttribute('data-theme');
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    
+    document.documentElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+    updateThemeIcons(newTheme === 'dark');
+}
+
+// Theme toggle event listener
+if (themeToggle) {
+    themeToggle.addEventListener('click', toggleTheme);
+}
+
+// =====================================================
+// Cart Functionality
+// =====================================================
+
+// Product data
+const products = {
+    'INTJ': { name: 'INTJ Architect Case', price: 49.00, type: 'INTJ', description: 'The Architect' },
+    'ENFP': { name: 'ENFP Campaigner Case', price: 49.00, type: 'ENFP', description: 'The Campaigner' },
+    'ISTP': { name: 'ISTP Virtuoso Case', price: 49.00, type: 'ISTP', description: 'The Virtuoso' },
+    'INFJ': { name: 'INFJ Advocate Case', price: 49.00, type: 'INFJ', description: 'The Advocate' },
+    'ESTP': { name: 'ESTP Entrepreneur Case', price: 49.00, type: 'ESTP', description: 'The Entrepreneur' },
+    'ISFJ': { name: 'ISFJ Defender Case', price: 49.00, type: 'ISFJ', description: 'The Defender' }
+};
+
+// Add item to cart
+function addToCart(productId, quantity = 1) {
+    const product = products[productId];
+    if (!product) return;
+    
+    const existingItem = cartItems.find(item => item.id === productId);
+    
+    if (existingItem) {
+        existingItem.quantity += quantity;
+    } else {
+        cartItems.push({
+            id: productId,
+            name: product.name,
+            price: product.price,
+            quantity: quantity,
+            type: product.type,
+            description: product.description
+        });
+    }
+    
+    updateCartUI();
+    showToast(`${product.name} added to cart!`);
+}
+
+// Remove item from cart
+function removeFromCart(productId) {
+    cartItems = cartItems.filter(item => item.id !== productId);
+    updateCartUI();
+}
+
+// Update item quantity
+function updateQuantity(productId, newQuantity) {
+    const item = cartItems.find(item => item.id === productId);
+    if (item) {
+        if (newQuantity <= 0) {
+            removeFromCart(productId);
+        } else {
+            item.quantity = newQuantity;
+            updateCartUI();
+        }
+    }
+}
+
+// Calculate cart total
+function calculateCartTotal() {
+    return cartItems.reduce((total, item) => total + (item.price * item.quantity), 0);
+}
+
+// Update cart UI
+function updateCartUI() {
+    const itemCount = cartItems.reduce((total, item) => total + item.quantity, 0);
+    cartCountEl.textContent = itemCount;
+    
+    cartTotal = calculateCartTotal();
+    cartTotalEl.textContent = formatPrice(cartTotal);
+    
+    renderCartItems();
+    
+    // Save to localStorage
+    localStorage.setItem('cartItems', JSON.stringify(cartItems));
+}
+
+// Render cart items
+function renderCartItems() {
+    cartItemsContainer.innerHTML = '';
+    
+    if (cartItems.length === 0) {
+        cartItemsContainer.innerHTML = '<p style="text-align: center; color: var(--color-text-muted); padding: 40px;">Your cart is empty</p>';
+        return;
+    }
+    
+    cartItems.forEach(item => {
+        const cartItemEl = document.createElement('div');
+        cartItemEl.className = 'cart-item';
+        cartItemEl.innerHTML = `
+            <div class="cart-item-image">
+                [${item.type}]
+            </div>
+            <div class="cart-item-details">
+                <h4>${item.name}</h4>
+                <p class="cart-item-price">${formatPrice(item.price)}</p>
+                <div class="cart-item-quantity">
+                    <button class="quantity-btn" onclick="updateQuantity('${item.id}', ${item.quantity - 1})">−</button>
+                    <span>${item.quantity}</span>
+                    <button class="quantity-btn" onclick="updateQuantity('${item.id}', ${item.quantity + 1})">+</button>
+                </div>
+            </div>
+            <div>
+                <button class="cart-remove" onclick="removeFromCart('${item.id}')">Remove</button>
+            </div>
+        `;
+        cartItemsContainer.appendChild(cartItemEl);
+    });
+}
+
+// Open cart
+function openCart() {
+    cartSidebar.classList.add('open');
+    cartOverlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+}
+
+// Close cart
+function closeCart() {
+    cartSidebar.classList.remove('open');
+    cartOverlay.classList.remove('open');
+    document.body.style.overflow = '';
+}
+
+// Cart event listeners
+if (cartToggle) {
+    cartToggle.addEventListener('click', openCart);
+}
+
+if (cartClose) {
+    cartClose.addEventListener('click', closeCart);
+}
+
+if (cartCloseBtn) {
+    cartCloseBtn.addEventListener('click', closeCart);
+}
+
+if (cartOverlay) {
+    cartOverlay.addEventListener('click', closeCart);
+}
+
+// Load cart from localStorage
+function loadCart() {
+    const savedCart = localStorage.getItem('cartItems');
+    if (savedCart) {
+        cartItems = JSON.parse(savedCart);
+        updateCartUI();
+    }
+}
+
+// =====================================================
 // Initialize
 // =====================================================
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log('PERSONA - MBTI Phone Case Store initialized');
+    
+    // Initialize theme
+    initializeTheme();
+    
+    // Load saved cart
+    loadCart();
     
     // Add loading animation
     document.body.style.opacity = '0';
